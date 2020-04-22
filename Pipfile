@@ -6,9 +6,10 @@ name = "pypi"
 [packages]
 connexion = "*"
 gevent = "*"
-greenlet = {version = "*", platform_python_implementation="=='CPython'"}
+greenlet = {version = "*",platform_python_implementation = "=='CPython'"}
 
 [dev-packages]
+pylint = "*"
 
 [requires]
 python_version = "3.6"
