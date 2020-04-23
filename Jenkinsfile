@@ -11,9 +11,12 @@ pipeline {
           sh 'hadolint Dockerfile'
       }
     }
-    stage('Build') {
-      steps {
-        sh 'echo "Hello World"'
+    stage('Build and Push Docker image') {
+      node {
+        checkout scm
+        def customImage = docker.build("jprottung/udacity-capstone-connexion:${env.BUILD_ID}")
+        customImage.push()
+        customImage.push('latest')
       }
     }
   }
