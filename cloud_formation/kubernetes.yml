@@ -112,4 +112,6 @@ Resources:
               service docker start
             - |
               usermod -a -G docker ec2-user
+            - |
+              docker run -d -p 80:8080 jprottung/udacity-capstone-connexion
             - |+
