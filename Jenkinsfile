@@ -8,12 +8,7 @@ pipeline {
         }
       }
       steps {
-          sh 'hadolint Dockerfile | tee -a hadolint_lint.txt'
-      }
-      post {
-          always {
-              archiveArtifacts 'hadolint_lint.txt'
-          }
+          sh 'hadolint Dockerfile'
       }
     }
     stage('Build') {
