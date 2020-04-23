@@ -9,4 +9,4 @@ COPY app.py /
 COPY swagger.yaml /
 
 WORKDIR /data
-CMD ["python", "/app.py"]
+CMD "/app.py"
