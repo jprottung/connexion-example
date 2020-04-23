@@ -3,6 +3,7 @@ FROM registry.opensource.zalan.do/stups/python:3.6.5-22
 COPY Pipfile /
 COPY Pipfile.lock /
 
+RUN pip install --upgrade pip
 RUN pipenv install --system --deploy --ignore-pipfile
 
 COPY app.py /
