@@ -20,100 +20,209 @@ Parameters:
     ConstraintDescription: must be a valid EC2 instance type.
 
 Resources:
-  NodeRole:
-    Type: "AWS::IAM::Role"
+  EKSClusterRole:
+    Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - Effect: "Allow"
+          - Effect: Allow
             Principal:
               Service:
-                - "ec2.amazonaws.com"
+                - eks.amazonaws.com
             Action:
-              - "sts:AssumeRole"
+              - sts:AssumeRole
       Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+        - arn:aws:iam::aws:policy/AmazonEKSServicePolicy
+      RoleName: !Sub "${Environment}-ekssvcrole"
 
-  NodeRolePolicies:
-    Type: "AWS::IAM::Policy"
-    DependsOn: "NodeRole"
-    Properties:
-      PolicyName: !Sub "${Environment}Node"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Sid: S3Access
-            Action: "*"
-            Effect: Allow
-            Resource: "*"
-      Roles:
-        - Ref: "NodeRole"
-
-  NodeInstanceProfile:
-    Type: "AWS::IAM::InstanceProfile"
-    DependsOn: "NodeRole"
-    Properties:
-      Path: "/"
-      Roles:
-        - Ref: "NodeRole"
-
-  NodeSecGroup:
+  ClusterControlPlaneSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow http to Node
+      GroupDescription: Cluster communication with worker nodes
       VpcId:
         Fn::ImportValue: !Sub ${Environment}-VPCID
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIpv6: ::/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIpv6: ::/0
 
-  Node:
-    Type: AWS::EC2::Instance
+  EKSCluster:
+    Type: AWS::EKS::Cluster
     Properties:
+      Name: !Sub ${Environment}-cluster
+      # Version: "1.15"
+      RoleArn: !GetAtt EKSClusterRole.Arn
+      ResourcesVpcConfig:
+        SecurityGroupIds:
+          - !Ref ClusterControlPlaneSecurityGroup
+        SubnetIds:
+          - Fn::ImportValue: !Sub ${Environment}-PUB1-SN
+          - Fn::ImportValue: !Sub ${Environment}-PUB2-SN
+          - Fn::ImportValue: !Sub ${Environment}-PRI1-SN
+          - Fn::ImportValue: !Sub ${Environment}-PRI2-SN
+
+  NodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref NodeInstanceRole
+
+  NodeInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
+  NodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for all nodes in the cluster
+      VpcId:
+        Fn::ImportValue: !Sub ${Environment}-VPCID
       Tags:
-        - Key: stack
-          Value: !Ref Environment
-        - Key: app
-          Value: Node
-      SubnetId:
-        Fn::ImportValue: !Sub ${Environment}-PUB1-SN
-      KeyName: "Laptop"
+        - Key: !Sub "kubernetes.io/cluster/${Environment}-cluster"
+          Value: "owned"
+
+  NodeSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow node to communicate with each other
+      GroupId: !Ref NodeSecurityGroup
+      SourceSecurityGroupId: !Ref NodeSecurityGroup
+      IpProtocol: "-1"
+      FromPort: 0
+      ToPort: 65535
+
+  ClusterControlPlaneSecurityGroupIngress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow pods to communicate with the cluster API Server
+      FromPort: 443
+      GroupId: !Ref ClusterControlPlaneSecurityGroup
+      IpProtocol: tcp
+      SourceSecurityGroupId: !Ref NodeSecurityGroup
+      ToPort: 443
+
+  ControlPlaneEgressToNodeSecurityGroup:
+    Type: "AWS::EC2::SecurityGroupEgress"
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow the cluster control plane to communicate with worker Kubelet and pods
+      DestinationSecurityGroupId: !Ref NodeSecurityGroup
+      FromPort: 1025
+      GroupId: !Ref ClusterControlPlaneSecurityGroup
+      IpProtocol: tcp
+      ToPort: 65535
+
+  ControlPlaneEgressToNodeSecurityGroupOn443:
+    Type: "AWS::EC2::SecurityGroupEgress"
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow the cluster control plane to communicate with pods running extension API servers on port 443
+      DestinationSecurityGroupId: !Ref NodeSecurityGroup
+      FromPort: 443
+      GroupId: !Ref ClusterControlPlaneSecurityGroup
+      IpProtocol: tcp
+      ToPort: 443
+
+  NodeSecurityGroupFromControlPlaneIngress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow worker Kubelets and pods to receive communication from the cluster control plane
+      FromPort: 1025
+      GroupId: !Ref NodeSecurityGroup
+      IpProtocol: tcp
+      SourceSecurityGroupId: !Ref ClusterControlPlaneSecurityGroup
+      ToPort: 65535
+
+  NodeSecurityGroupFromControlPlaneOn443Ingress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow pods running extension API servers on port 443 to receive communication from cluster control plane
+      FromPort: 443
+      GroupId: !Ref NodeSecurityGroup
+      IpProtocol: tcp
+      SourceSecurityGroupId: !Ref ClusterControlPlaneSecurityGroup
+      ToPort: 443
+
+  NodeTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: /
+      # HealthCheckPort: String
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      # Matcher: Matcher
+      Name: !Sub "${Environment}-cluster"
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      UnhealthyThresholdCount: 2
+      VpcId:
+        Fn::ImportValue: !Sub ${Environment}-VPCID
+
+  NodeGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      DesiredCapacity: 3
+      LaunchConfigurationName: !Ref NewNodeLaunchConfig
+      MaxSize: 8
+      MinSize: 2
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: !Sub ${Environment}-cluster-test-Node
+        - Key: !Sub kubernetes.io/cluster/${Environment}-cluster
+          PropagateAtLaunch: true
+          Value: owned
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub ${Environment}-PUB1-SN
+        - Fn::ImportValue: !Sub ${Environment}-PUB2-SN
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: 1
+        PauseTime: PT60S
+
+  NewNodeLaunchConfig:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: 8
+            VolumeType: gp2
+      IamInstanceProfile: !Ref NodeInstanceProfile
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
-      IamInstanceProfile: !Ref NodeInstanceProfile
-      SecurityGroupIds:
-        - !Ref NodeSecGroup
+      KeyName: "Laptop"
+      SecurityGroups:
+        - Ref: NodeSecurityGroup
       UserData: !Base64
-        Fn::Join:
-          - ""
-          - - |
-              #!/bin/bash -xe
-            - |
-              # Install Docker and Node
-            - |
-              yum update -y
-            - |
-              amazon-linux-extras install docker
-            - |
-              service docker start
-            - |
-              usermod -a -G docker ec2-user
-            - |
-              docker pull jprottung/udacity-capstone-connexion:latest
-            - |
-              docker run -d -p 80:8080 jprottung/udacity-capstone-connexion
-            - |+
+        "Fn::Sub": |
+          #!/bin/bash
+          set -o xtrace
+          /etc/eks/bootstrap.sh ${Environment}-cluster
+          /opt/aws/bin/cfn-signal --exit-code $? \
+                   --stack  ${AWS::StackName} \
+                   --resource NodeGroup  \
+                   --region ${AWS::Region}

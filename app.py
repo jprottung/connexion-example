@@ -6,7 +6,14 @@ import logging
 from connexion import NoContent
 
 # our memory-only pet storage
-PETS = {}
+PETS = {
+    '1': {
+        "animal_type": "cat",
+        "created": "2020-04-23T20:15:48.460433Z",
+        "id": "1",
+        "name": "paula"
+    }
+}
 
 
 def get_pets(limit, animal_type=None):
