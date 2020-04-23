@@ -1,5 +1,10 @@
 pipeline {
   agent any
+  environment {
+    registry = "jprottung/udacity-capstone-connexion"
+    registryCredential = ‘dockerhub’
+    dockerImage = ""
+  }
   stages {
     stage('Lint') {
       agent {
@@ -12,12 +17,21 @@ pipeline {
       }
     }
     stage('Build and Push Docker image') {
-      node {
-        checkout scm
-        def customImage = docker.build("jprottung/udacity-capstone-connexion:${env.BUILD_ID}")
-        customImage.push()
-        customImage.push('latest')
+      steps {
+        script {
+          dockerImage = docker.build(registry + ":${env.BUILD_ID}")
+        }
       }
     }
+    stage('Deploy Image') {
+      steps{
+        script {
+          docker.withRegistry( '', registryCredential ) {
+            dockerImage.push()
+            dockerImage.push("latest")
+          }
+        }
+    }
+  }
   }
 }
