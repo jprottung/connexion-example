@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  AWS CloudFormation template bring up connexion example kubernetes cluster
+Parameters:
+  Environment:
+    Description: Environment for Naming
+    Type: String
+    Default: dev
+    ConstraintDescription: Must be a string.
+  AmiId:
+    Type: String
+    Description: Specifies the AMI ID, using newest linux for us-east-1
+    Default: ami-0ff8a91507f77f867
+  InstanceType:
+    Type: String
+    Description: >
+      Specifies the EC2 instance type for Node, which is memory intensive usually
+      Defaults to m4.large
+    Default: m5.large
+    ConstraintDescription: must be a valid EC2 instance type.
+
+Resources:
+  NodeRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+
+  NodeRolePolicies:
+    Type: "AWS::IAM::Policy"
+    DependsOn: "NodeRole"
+    Properties:
+      PolicyName: !Sub "${Environment}Node"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: S3Access
+            Action: "*"
+            Effect: Allow
+            Resource: "*"
+      Roles:
+        - Ref: "NodeRole"
+
+  NodeInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    DependsOn: "NodeRole"
+    Properties:
+      Path: "/"
+      Roles:
+        - Ref: "NodeRole"
+
+  NodeSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to Node
+      VpcId:
+        Fn::ImportValue: !Sub ${Environment}-VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIpv6: ::/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIpv6: ::/0
+
+  Node:
+    Type: AWS::EC2::Instance
+    Properties:
+      Tags:
+        - Key: stack
+          Value: !Ref Environment
+        - Key: app
+          Value: Node
+      SubnetId:
+        Fn::ImportValue: !Sub ${Environment}-PUB1-SN
+      KeyName: "Laptop"
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref NodeInstanceProfile
+      SecurityGroupIds:
+        - !Ref NodeSecGroup
+      UserData: !Base64
+        Fn::Join:
+          - ""
+          - - |
+              #!/bin/bash -xe
+            - |
+              # Install Docker and Node
+            - |
+              yum update -y
+            - |
+              amazon-linux-extras install docker
+            - |
+              service docker start
+            - |
+              usermod -a -G docker ec2-user
+            - |+

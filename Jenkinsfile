@@ -16,7 +16,7 @@ pipeline {
           sh 'hadolint Dockerfile'
       }
     }
-    stage('Build and Push Docker image') {
+    stage('Build Image') {
       steps {
         script {
           dockerImage = docker.build(registry + ":${env.BUILD_ID}")
