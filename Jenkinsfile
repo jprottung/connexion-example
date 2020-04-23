@@ -2,7 +2,7 @@ pipeline {
   agent any
   environment {
     registry = "jprottung/udacity-capstone-connexion"
-    registryCredential = ‘dockerhub’
+    registryCredential = "6850ffdf-418c-4ecf-976c-5c11d3083ba9"
     dockerImage = ""
   }
   stages {
