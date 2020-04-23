@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: connexion-deployment
+  labels:
+    app: connexion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: connexion
+  template:
+    metadata:
+      labels:
+        app: connexion
+    spec:
+      containers:
+        - name: connexion
+          image: jprottung/udacity-capstone-connexion
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /pets
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0

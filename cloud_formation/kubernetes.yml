@@ -80,6 +80,20 @@ Resources:
             Action:
               - sts:AssumeRole
       Path: "/"
+      Policies:
+        - PolicyName: "udacity-capstone-autoscaling-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - autoscaling:DescribeAutoScalingGroups
+                  - autoscaling:DescribeAutoScalingInstances
+                  - autoscaling:DescribeLaunchConfigurations
+                  - autoscaling:DescribeTags
+                  - autoscaling:SetDesiredCapacity
+                  - autoscaling:TerminateInstanceInAutoScalingGroup
+                Resource: "*"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
@@ -194,8 +208,8 @@ Resources:
           PropagateAtLaunch: true
           Value: owned
       VPCZoneIdentifier:
-        - Fn::ImportValue: !Sub ${Environment}-PUB1-SN
-        - Fn::ImportValue: !Sub ${Environment}-PUB2-SN
+        - Fn::ImportValue: !Sub ${Environment}-PRI1-SN
+        - Fn::ImportValue: !Sub ${Environment}-PRI2-SN
     UpdatePolicy:
       AutoScalingRollingUpdate:
         MaxBatchSize: 1

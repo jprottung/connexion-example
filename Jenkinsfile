@@ -33,5 +33,12 @@ pipeline {
         }
       }
     }
+    stage('Rollout Image') {
+      steps {
+        script {
+          sh 'kubectl set image deployment/connexion-deployment connexion=' + registry + ':${env.BUILD_ID}'
+        }
+      }
+    }
   }
 }
