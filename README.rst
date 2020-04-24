@@ -3,7 +3,7 @@ Udacity Capstone Project
 ========================
 
 This is the solution from Janik Prottung to the Udacity Cloud DevOps Nanodegree Capstone project.
-As a base I used the `hjacobs/connexion-example<https://github.com/hjacobs/connexion-example>`_.
+As a base I used the `hjacobs/connexion-example <https://github.com/hjacobs/connexion-example>`_.
 The "old" readme can be found below the next Title.
 
 What I did to the old repo
@@ -22,7 +22,7 @@ How you can bring up the Cluster
     a) network: `cloud_formation/create.bat <stack-name> network.yml network-parameters.json`
     b) cluster (after network completed): `cloud_formation/create.bat <stack-name> cluster.yml cluster-parameters.json`
 3. Set up kubectl to talk to your cluster
-    * Tips on `Create Kubeconfig<https://docs.aws.amazon.com/de_de/eks/latest/userguide/create-kubeconfig.html>`_
+    * Tips on `Create Kubeconfig <https://docs.aws.amazon.com/de_de/eks/latest/userguide/create-kubeconfig.html>`_
     * Command: `aws eks --region <region-code> update-kubeconfig --name <cluster_name>`
 4. Apply the deployments and services to your cluster
     a) Replace `<<ReplaceWith-NodeInstanceRole-Arn>>` in `kubernetes/aws-auth-cm.yaml` with cloudformation export
@@ -62,7 +62,7 @@ based on `Swagger 2.0 Specification`_ files in YAML.
 
 
 Features
-========
+--------
 
 This example application shows various features supported by the Connexion library:
 
@@ -86,7 +86,7 @@ This example application shows various features supported by the Connexion libra
 
 
 Files
-=====
+-----
 
 The example application only needs very few files:
 
@@ -98,7 +98,7 @@ The example application only needs very few files:
 
 
 Running Locally
-===============
+---------------
 
 You can run the Python application directly on your local operating system (this requires Python 3 and `Pipenv <https://docs.pipenv.org/>`_):
 
@@ -111,7 +111,7 @@ You can run the Python application directly on your local operating system (this
 
 
 Running with Docker
-===================
+-------------------
 
 You can build the example application as a Docker image and run it:
 
@@ -123,7 +123,7 @@ You can build the example application as a Docker image and run it:
 
 
 Using OAuth2 Security
-=====================
+---------------------
 
 To enable OAuth2 security (token verification), you need to pass the URL to the "tokeninfo" endpoint:
 
@@ -132,7 +132,7 @@ To enable OAuth2 security (token verification), you need to pass the URL to the 
     $ docker run -d -p 8080:8080 -e HTTP_TOKENINFO_URL=https://auth.example.org/tokeninfo connexion-example
 
 Using Connexion with a WSGI container
-=====================================
+-------------------------------------
 
 You can use the Flask WSGI app with any WSGI container, e.g. `using Flask with uWSGI`_:
 
