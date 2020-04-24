@@ -1,3 +1,54 @@
+========================
+Udacity Capstone Project
+========================
+
+This is the solution from Janik Prottung to the Udacity Cloud DevOps Nanodegree Capstone project.
+As a base I used the `hjacobs/connexion-example<https://github.com/hjacobs/connexion-example>`_.
+The "old" readme can be found below the next Title.
+
+What I did to the old repo
+--------------------------
+
+I changed the app.py to contain one pet from the start and updated the Dockerfile to meet the linting
+requirements.
+
+How you can bring up the Cluster
+--------------------------------
+
+1. Update parameters in the `cloud_formation` sub-folder.
+    * Name the `Environment` in both json-files
+    * Update the EKS-AMI to the one from your zone
+2. Create the cloudformation stacks
+    a) network: `cloud_formation/create.bat <stack-name> network.yml network-parameters.json`
+    b) cluster (after network completed): `cloud_formation/create.bat <stack-name> cluster.yml cluster-parameters.json`
+3. Set up kubectl to talk to your cluster
+    * Tips on `Create Kubeconfig<https://docs.aws.amazon.com/de_de/eks/latest/userguide/create-kubeconfig.html>`_
+    * Command: `aws eks --region <region-code> update-kubeconfig --name <cluster_name>`
+4. Apply the deployments and services to your cluster
+    a) Replace `<<ReplaceWith-NodeInstanceRole-Arn>>` in `kubernetes/aws-auth-cm.yaml` with cloudformation export
+    b) Replace `<<ReplaceWith-NodeGroupAZ1Name>>` and `<<ReplaceWith-NodeGroupAZ2Name>>` in `kubernetes/cluster-autoscaler` with cloudformation export
+    c) Apply config `kubectl -f kubernetes/aws-auth-cm.yml`
+    d) Apply config `kubectl -f kubernetes/cluster-autoscaler.yml`
+    e) Apply config `kubectl -f kubernetes/connexion-loadbalancer.yml`
+    f) Apply config `kubectl -f kubernetes/connexion-deployment.yml`
+5. Check Everything works
+    * Get Public DNS from `kubectl get svc` and visit in your browser with the path `/pets`
+    * You should see Paula now
+
+How to deploy using Jenkins
+---------------------------
+
+1. Set Up Jenkins
+    1. Install Jenkins
+    2. Install docker, aws-cli, kubectl
+    3. Set docker, aws and kubectl permissions for user jenkins
+    4. Add Docker-Hub credentials with Id `dockerhub`
+    5. Run `aws configure` and enter credentials (same user) and region
+    6. Run `aws eks --region <region-code> update-kubeconfig --name <cluster_name>`
+    7. Copy `.kube` and `.aws` folders to jenkins home directory and set permissions for jenkins user
+2. Create Pipeline using Git-repository
+3. Run Pipeline
+
 ==============================
 Connexion Example REST Service
 ==============================

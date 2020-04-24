@@ -193,22 +193,43 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub ${Environment}-VPCID
 
-  NodeGroup:
+  NodeGroupAZ1:
     Type: "AWS::AutoScaling::AutoScalingGroup"
     Properties:
-      DesiredCapacity: 3
+      DesiredCapacity: 2
       LaunchConfigurationName: !Ref NewNodeLaunchConfig
       MaxSize: 8
-      MinSize: 2
+      MinSize: 1
       Tags:
         - Key: Name
           PropagateAtLaunch: true
-          Value: !Sub ${Environment}-cluster-test-Node
+          Value: !Sub ${Environment}-cluster-az1-Node
         - Key: !Sub kubernetes.io/cluster/${Environment}-cluster
           PropagateAtLaunch: true
           Value: owned
       VPCZoneIdentifier:
         - Fn::ImportValue: !Sub ${Environment}-PRI1-SN
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: 1
+        PauseTime: PT60S
+
+  NodeGroupAZ2:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      DesiredCapacity: 2
+      LaunchConfigurationName: !Ref NewNodeLaunchConfig
+      MaxSize: 8
+      MinSize: 1
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: !Sub ${Environment}-cluster-az2-Node
+        - Key: !Sub kubernetes.io/cluster/${Environment}-cluster
+          PropagateAtLaunch: true
+          Value: owned
+      VPCZoneIdentifier:
         - Fn::ImportValue: !Sub ${Environment}-PRI2-SN
     UpdatePolicy:
       AutoScalingRollingUpdate:
@@ -240,3 +261,22 @@ Resources:
                    --stack  ${AWS::StackName} \
                    --resource NodeGroup  \
                    --region ${AWS::Region}
+
+Outputs:
+  NodeGroupAZ1Name:
+    Description: A reference to the created VPC
+    Value: !Ref NodeGroupAZ1
+    Export:
+      Name: !Sub ${Environment}-NodeGroupAZ1Name
+
+  NodeGroupAZ2Name:
+    Description: A reference to the created VPC
+    Value: !Ref NodeGroupAZ2
+    Export:
+      Name: !Sub ${Environment}-NodeGroupAZ2Name
+
+  NodeInstanceRoleArn:
+    Description: Arn of the instance Role
+    Value: !GetAtt NodeInstanceRole.Arn
+    Export:
+      Name: !Sub ${Environment}-NodeInstanceRole
